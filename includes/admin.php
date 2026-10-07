@@ -20,16 +20,12 @@ function settings_url(): string {
 }
 
 /**
- * Key shown without revealing it: "github_pat_…a3F9".
+ * Last characters of the key, enough to recognise it without revealing it.
  *
  * @param string $key Update key.
  */
-function masked_key( string $key ): string {
-	if ( strlen( $key ) <= 12 ) {
-		return '••••••••';
-	}
-	$prefix = preg_match( '/^(github_pat_|ghp_)/', $key, $match ) ? $match[1] : '';
-	return $prefix . '…' . substr( $key, -4 );
+function key_ending( string $key ): string {
+	return strlen( $key ) > 12 ? substr( $key, -4 ) : '';
 }
 
 add_action(
@@ -137,11 +133,11 @@ function product_status( array $product, array $check ): string {
 			}
 			return __( 'Up to date.', 'webcraft-media' );
 		case 'no_key':
-			return __( 'No update key.', 'webcraft-media' );
+			return __( 'No update key yet: paste it in the field below.', 'webcraft-media' );
 		case 'invalid_key':
-			return __( 'The update key is not valid or has expired.', 'webcraft-media' );
+			return __( 'The update key is not valid or has expired. Contact Webcraft Media for a new one.', 'webcraft-media' );
 		case 'no_access':
-			return __( 'The update key is not meant for this product.', 'webcraft-media' );
+			return __( 'The update key is not meant for this product. Contact Webcraft Media.', 'webcraft-media' );
 		case 'no_release':
 			return __( 'No version has been published yet.', 'webcraft-media' );
 		case 'error':
@@ -228,6 +224,21 @@ function render_settings_page(): void {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+			<p>
+				<?php
+				esc_html_e( 'WordPress checks for new versions by itself, about twice a day and right after a key is saved: there is nothing to do by hand. Check now is only for when you do not want to wait.', 'webcraft-media' );
+				$next = wp_next_scheduled( 'wp_update_themes' );
+				if ( $next ) {
+					echo ' ';
+					echo esc_html(
+						$next > time()
+							/* translators: %s: time span, e.g. "5 hours". */
+							? sprintf( __( 'Next automatic check: in %s.', 'webcraft-media' ), human_time_diff( time(), $next ) )
+							: __( 'Next automatic check: in a few minutes.', 'webcraft-media' )
+					);
+				}
+				?>
+			</p>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="webcraft_media_check">
 				<?php wp_nonce_field( 'webcraft_media_check' ); ?>
@@ -244,16 +255,22 @@ function render_settings_page(): void {
 						<?php if ( $in_code ) : ?>
 							<p><?php esc_html_e( 'The update key is set in wp-config.php.', 'webcraft-media' ); ?></p>
 						<?php else : ?>
-							<input type="password" id="webcraft-media-key" name="webcraft_media_token" class="regular-text code" value="" autocomplete="off" spellcheck="false" placeholder="<?php echo esc_attr( '' !== $key ? masked_key( $key ) : 'github_pat_…' ); ?>">
+							<input type="password" id="webcraft-media-key" name="webcraft_media_token" class="regular-text code" value="" autocomplete="off" spellcheck="false" placeholder="<?php echo esc_attr( '' !== $key ? __( 'A key is saved', 'webcraft-media' ) : __( 'Paste the key here', 'webcraft-media' ) ); ?>">
 							<p class="description">
-								<?php esc_html_e( 'Webcraft Media gives you this key with your maintenance plan. Paste it here and save.', 'webcraft-media' ); ?>
-								<?php if ( '' !== $key ) : ?>
-									<?php
-									/* translators: %s: the saved key, partly hidden. */
-									echo esc_html( sprintf( __( 'Saved key: %s. Leave the field empty to keep it.', 'webcraft-media' ), masked_key( $key ) ) );
-									?>
-								<?php endif; ?>
+								<?php esc_html_e( 'The update key is the long code Webcraft Media sends you with your maintenance plan (it starts with github_pat_). Copy it whole, paste it here and click Save Changes.', 'webcraft-media' ); ?>
 							</p>
+							<?php if ( '' !== $key ) : ?>
+								<p class="description">
+									<?php
+									echo esc_html(
+										'' !== key_ending( $key )
+											/* translators: %s: last four characters of the saved key. */
+											? sprintf( __( 'The saved key ends in %s. Leave the field empty to keep it.', 'webcraft-media' ), key_ending( $key ) )
+											: __( 'A key is saved. Leave the field empty to keep it.', 'webcraft-media' )
+									);
+									?>
+								</p>
+							<?php endif; ?>
 							<?php if ( '' !== $key ) : ?>
 								<p><label><input type="checkbox" name="webcraft_media_token_remove" value="1"> <?php esc_html_e( 'Remove the saved key', 'webcraft-media' ); ?></label></p>
 							<?php endif; ?>
