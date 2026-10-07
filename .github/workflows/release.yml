@@ -1,0 +1,52 @@
+# Publishes an installable zip when a version tag is pushed:
+#
+#   git tag -a v1.2.0 -m "What changed (shown to the site owners as release notes)"
+#   git push origin v1.2.0
+#
+# The same file works in every theme or plugin repository: only the three settings
+# below change.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  # Theme or plugin folder name: the zip holds this folder.
+  SLUG: webcraft-media
+  # Where that folder is in the repository ('' when it is the repository itself).
+  SOURCE: ''
+  # File with the "Version:" header (style.css for a theme), relative to SOURCE.
+  MAIN_FILE: webcraft-media.php
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch the tag with its message
+        run: git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+
+      - name: Check that the tag matches the version
+        run: |
+          file="${SOURCE:+$SOURCE/}$MAIN_FILE"
+          version=$(grep -m1 -E '^[[:space:]*#@/]*Version:' "$file" | sed -E 's/.*Version:[[:space:]]*//' | tr -d '\r[:space:]')
+          if [ "$version" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Version $version in $file"
+            exit 1
+          fi
+
+      - name: Build the zip
+        run: git archive --format=zip --prefix="$SLUG/" -o "$SLUG.zip" "HEAD${SOURCE:+:$SOURCE}"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > notes.md
+          gh release create "$GITHUB_REF_NAME" "$SLUG.zip" --title "$GITHUB_REF_NAME" --notes-file notes.md
