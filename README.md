@@ -110,6 +110,12 @@ it or above it, up to the folder holding WordPress): installing a release there 
 work in progress. A folder linked into the site from a working copy elsewhere (a symlink or a
 Windows junction) counts too. The settings page lists such products as development copies.
 
+Exports made with All-in-One WP Migration leave out the git files of these products (`.git`,
+`.github`, `.gitattributes`, `.gitignore`): otherwise the copy on the destination site would
+count as a development copy as well and never get updates. Note that All-in-One skips Windows
+junctions entirely, so a plugin linked into a site that way is not exported at all: keep a real
+copy in the site instead.
+
 ## Filters
 
 - `webcraft_media_github_owners`: GitHub accounts whose themes and plugins are updated
