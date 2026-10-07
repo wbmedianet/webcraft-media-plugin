@@ -174,6 +174,23 @@ function product_release( array $product, bool $fresh = false ): array {
 }
 
 /**
+ * Products with a newer version ready to install, keyed like products().
+ *
+ * @return array<string, array> Products, see products().
+ */
+function available_updates(): array {
+	$checks    = checks();
+	$available = array();
+	foreach ( products() as $key => $product ) {
+		$check = $checks[ $key ] ?? array();
+		if ( 'ok' === ( $check['status'] ?? '' ) && version_compare( $check['version'], $product['version'], '>' ) && ! is_git_copy( $product ) ) {
+			$available[ $key ] = $product;
+		}
+	}
+	return $available;
+}
+
+/**
  * Whether updates are off because the update key is missing, wrong or expired.
  */
 function updates_inactive(): bool {

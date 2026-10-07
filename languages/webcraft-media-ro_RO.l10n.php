@@ -30,7 +30,6 @@ return array(
 		'No version has been published yet.'                                       => 'Nu a fost publicată încă nicio versiune.',
 		'GitHub could not be reached: %s'                                          => 'GitHub nu a putut fi contactat: %s',
 		'Not checked yet.'                                                         => 'Nu a fost verificat încă.',
-		'Checked for updates just now.'                                            => 'Actualizările au fost verificate chiar acum.',
 		'Updates'                                                                  => 'Actualizări',
 		'No theme or plugin on this site is updated by Webcraft Media.'            => 'Nicio temă și niciun modul de pe acest site nu primește actualizări de la Webcraft Media.',
 		'Updates are not active. To turn them back on, contact %s.'                => 'Actualizările nu sunt active. Pentru reactivare, contactați %s.',
@@ -62,5 +61,10 @@ return array(
 		'No update key yet: paste it in the field below.' => 'Încă nu există o cheie de actualizare: lipiți-o în câmpul de mai jos.',
 		'The update key is not valid or has expired. Contact Webcraft Media for a new one.' => 'Cheia de actualizare nu este validă sau a expirat. Contactați Webcraft Media pentru o cheie nouă.',
 		'The update key is not meant for this product. Contact Webcraft Media.' => 'Cheia de actualizare nu este destinată acestui produs. Contactați Webcraft Media.',
+		'Checked just now.' => 'Verificat chiar acum.',
+		'A new version of %1$s is available: install it from %2$s.' => 'Este disponibilă o versiune nouă pentru %1$s: o puteți instala din %2$s.',
+		'New versions of %1$s are available: install them from %2$s.' => 'Sunt disponibile versiuni noi pentru %1$s: le puteți instala din %2$s.',
+		'Checked just now. Updates are not active: see the status below.' => 'Verificat chiar acum. Actualizările nu sunt active: vedeți starea de mai jos.',
+		'Checked just now: everything is up to date.' => 'Verificat chiar acum: totul este la zi.',
 	),
 );

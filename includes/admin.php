@@ -85,16 +85,37 @@ function sanitize_key_field( $value ): string {
 }
 
 /**
+ * Sentence naming the products with a new version ready to install, with a link to
+ * Dashboard → Updates ('' when there is none). HTML, escaped.
+ */
+function available_message(): string {
+	$names = array_values( wp_list_pluck( available_updates(), 'name' ) );
+	if ( ! $names ) {
+		return '';
+	}
+	$link = '<a href="' . esc_url( self_admin_url( 'update-core.php' ) ) . '">' . esc_html__( 'Dashboard → Updates', 'webcraft-media' ) . '</a>';
+	return sprintf(
+		1 === count( $names )
+			/* translators: 1: theme or plugin name, 2: link to Dashboard → Updates. */
+			? esc_html__( 'A new version of %1$s is available: install it from %2$s.', 'webcraft-media' )
+			/* translators: 1: list of theme and plugin names, 2: link to Dashboard → Updates. */
+			: esc_html__( 'New versions of %1$s are available: install them from %2$s.', 'webcraft-media' ),
+		esc_html( wp_sprintf_l( '%l', $names ) ),
+		$link
+	);
+}
+
+/**
  * Tries a new key at once; the result replaces "Settings saved.".
  */
 function key_saved(): void {
 	check_now();
 	if ( '' === token() ) {
-		add_settings_error( PAGE, 'webcraft_media_key', __( 'The update key was removed.', 'webcraft-media' ), 'info' );
+		add_settings_error( PAGE, 'webcraft_media_key', esc_html__( 'The update key was removed.', 'webcraft-media' ), 'info' );
 	} elseif ( updates_inactive() ) {
-		add_settings_error( PAGE, 'webcraft_media_key', __( 'The key was saved, but GitHub does not accept it for these products. Check that it was copied whole, or contact Webcraft Media.', 'webcraft-media' ), 'error' );
+		add_settings_error( PAGE, 'webcraft_media_key', esc_html__( 'The key was saved, but GitHub does not accept it for these products. Check that it was copied whole, or contact Webcraft Media.', 'webcraft-media' ), 'error' );
 	} else {
-		add_settings_error( PAGE, 'webcraft_media_key', __( 'The key works: updates are active.', 'webcraft-media' ), 'success' );
+		add_settings_error( PAGE, 'webcraft_media_key', trim( esc_html__( 'The key works: updates are active.', 'webcraft-media' ) . ' ' . available_message() ), 'success' );
 	}
 }
 
@@ -163,10 +184,20 @@ function render_settings_page(): void {
 	<div class="wrap">
 		<h1>Webcraft Media</h1>
 
-		<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only. ?>
-		<?php if ( isset( $_GET['checked'] ) ) : ?>
-			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Checked for updates just now.', 'webcraft-media' ); ?></p></div>
-		<?php endif; ?>
+		<?php
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+		if ( isset( $_GET['checked'] ) ) {
+			$available = available_message();
+			if ( '' !== $available ) {
+				$result = array( 'info', esc_html__( 'Checked just now.', 'webcraft-media' ) . ' ' . $available );
+			} elseif ( updates_inactive() ) {
+				$result = array( 'warning', esc_html__( 'Checked just now. Updates are not active: see the status below.', 'webcraft-media' ) );
+			} else {
+				$result = array( 'success', esc_html__( 'Checked just now: everything is up to date.', 'webcraft-media' ) );
+			}
+			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $result[0] ), wp_kses_post( $result[1] ) );
+		}
+		?>
 
 		<h2><?php esc_html_e( 'Updates', 'webcraft-media' ); ?></h2>
 		<?php if ( ! $products ) : ?>
