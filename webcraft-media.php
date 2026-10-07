@@ -3,7 +3,7 @@
  * Plugin Name:       Webcraft Media
  * Plugin URI:        https://github.com/wbmedianet/webcraft-media-plugin
  * Description:       Updates for the themes and plugins built for your site by Webcraft Media.
- * Version:           1.0.2
+ * Version:           1.1.0
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            Webcraft Media

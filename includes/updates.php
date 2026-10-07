@@ -59,9 +59,23 @@ function repo_from_uri( string $uri ): string {
 }
 
 /**
+ * Folder named after the repository in an Update URI, for repositories that hold several
+ * plugins (https://github.com/wbmedianet/plugins/tree/main/wm-contact-form), or ''.
+ *
+ * @param string $uri Update URI header.
+ */
+function package_from_uri( string $uri ): string {
+	$path = explode( '/', trim( (string) wp_parse_url( trim( $uri ), PHP_URL_PATH ), '/' ) );
+	return count( $path ) > 2 ? sanitize_title( (string) end( $path ) ) : '';
+}
+
+/**
  * Installed themes and plugins updated from GitHub, keyed "theme:{folder}" or "plugin:{file}".
  *
- * @return array<string, array{key: string, type: string, id: string, slug: string, name: string, version: string, repo: string, dir: string}>
+ * "package" is the product's folder in a repository that holds several products ('' when
+ * the repository holds only this one).
+ *
+ * @return array<string, array{key: string, type: string, id: string, slug: string, name: string, version: string, repo: string, package: string, dir: string}>
  */
 function products(): array {
 	$products = array();
@@ -76,6 +90,7 @@ function products(): array {
 				'name'    => (string) $theme->get( 'Name' ),
 				'version' => (string) $theme->get( 'Version' ),
 				'repo'    => $repo,
+				'package' => package_from_uri( (string) $theme->get( 'UpdateURI' ) ),
 				'dir'     => $theme->get_stylesheet_directory(),
 			);
 		}
@@ -97,6 +112,7 @@ function products(): array {
 				'name'    => (string) $data['Name'],
 				'version' => (string) $data['Version'],
 				'repo'    => $repo,
+				'package' => package_from_uri( (string) ( $data['UpdateURI'] ?? '' ) ),
 				'dir'     => WP_PLUGIN_DIR . '/' . $folder,
 			);
 		}
@@ -121,8 +137,23 @@ function is_git_copy( array $product ): bool {
 		return false;
 	}
 	// From the product folder up to the folder that holds the WordPress folder.
-	$dir  = wp_normalize_path( untrailingslashit( $product['dir'] ) );
-	$stop = wp_normalize_path( dirname( ABSPATH, 2 ) );
+	$dir = wp_normalize_path( untrailingslashit( $product['dir'] ) );
+	if ( has_git_above( $dir, wp_normalize_path( dirname( ABSPATH, 2 ) ) ) ) {
+		return true;
+	}
+	// A folder linked in from a working copy elsewhere (symlink or junction): from where
+	// it really is, all the way up.
+	$real = realpath( $dir );
+	return false !== $real && wp_normalize_path( $real ) !== $dir && has_git_above( wp_normalize_path( $real ), '' );
+}
+
+/**
+ * Whether a folder, or one above it down to $stop, holds a .git folder or file.
+ *
+ * @param string $dir  Normalized folder path.
+ * @param string $stop Highest folder to look in ('' for the top of the disk).
+ */
+function has_git_above( string $dir, string $stop ): bool {
 	while ( strlen( $dir ) >= strlen( $stop ) ) {
 		if ( file_exists( $dir . '/.git' ) ) {
 			return true;
@@ -153,13 +184,13 @@ function checks(): array {
  * @param bool  $fresh   Ask GitHub even when a cached answer exists.
  */
 function product_release( array $product, bool $fresh = false ): array {
-	$cache   = 'webcraft_media_' . md5( $product['repo'] . '|' . $product['slug'] );
+	$cache   = 'webcraft_media_' . md5( $product['repo'] . '|' . $product['slug'] . '|' . $product['package'] );
 	$release = $fresh ? false : get_site_transient( $cache );
 	if ( is_array( $release ) ) {
 		return $release;
 	}
 
-	$release = latest_release( $product['repo'], $product['slug'] );
+	$release = latest_release( $product['repo'], $product['slug'], $product['package'] );
 	set_site_transient( $cache, $release, in_array( $release['status'], array( 'ok', 'no_release' ), true ) ? HOUR_IN_SECONDS : 15 * MINUTE_IN_SECONDS );
 
 	$checks                    = checks();

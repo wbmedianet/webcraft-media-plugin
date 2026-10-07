@@ -65,10 +65,12 @@ function github_request( string $url, bool $auth, array $args = array() ): array
 }
 
 /**
- * Latest release of a repository.
+ * Latest release of a repository, or of one product in a repository that holds several
+ * (there, each product's releases are tagged "{package}-v{version}").
  *
- * @param string $repo Repository, "owner/name".
- * @param string $slug Theme or plugin folder name; the release zip is "{slug}.zip".
+ * @param string $repo    Repository, "owner/name".
+ * @param string $slug    Theme or plugin folder name; the release zip is "{slug}.zip".
+ * @param string $package Product folder in a repository that holds several, or ''.
  * @return array {
  *     @type string $status  ok | no_key | invalid_key | no_access | no_release | error
  *     @type string $version Release version (the tag without its "v").
@@ -78,8 +80,9 @@ function github_request( string $url, bool $auth, array $args = array() ): array
  *     @type string $message Details for an error.
  * }
  */
-function latest_release( string $repo, string $slug ): array {
-	$url   = GITHUB_API . '/repos/' . $repo . '/releases/latest';
+function latest_release( string $repo, string $slug, string $package = '' ): array {
+	// The newest 100 releases of a shared repository are enough to find each product's latest.
+	$url   = GITHUB_API . '/repos/' . $repo . ( '' === $package ? '/releases/latest' : '/releases?per_page=100' );
 	$args  = array( 'headers' => array( 'Accept' => 'application/vnd.github.full+json' ) );
 	$keyed = '' !== token();
 
@@ -93,7 +96,8 @@ function latest_release( string $repo, string $slug ): array {
 	}
 
 	if ( 200 === $response['code'] ) {
-		return release_from_api( json_decode( $response['body'], true ), $slug );
+		$data = json_decode( $response['body'], true );
+		return '' === $package ? release_from_api( $data, $slug ) : package_release( $data, $slug, $package );
 	}
 	if ( $response['rate_limited'] ) {
 		return release_failure( 'error', __( 'GitHub is limiting requests from this server for now.', 'webcraft-media' ) );
@@ -117,12 +121,41 @@ function latest_release( string $repo, string $slug ): array {
 }
 
 /**
+ * Newest release of one product, from the release list of a repository that holds several.
+ *
+ * @param mixed  $data    Decoded list of releases.
+ * @param string $slug    Theme or plugin folder name.
+ * @param string $package Product folder; its releases are tagged "{package}-v{version}".
+ */
+function package_release( $data, string $slug, string $package ): array {
+	if ( ! is_array( $data ) ) {
+		return release_failure( 'error', __( 'GitHub sent an answer that could not be read.', 'webcraft-media' ) );
+	}
+	$prefix  = $package . '-v';
+	$newest  = null;
+	$version = '';
+	foreach ( $data as $release ) {
+		$tag = (string) ( $release['tag_name'] ?? '' );
+		if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) || ! str_starts_with( $tag, $prefix ) ) {
+			continue;
+		}
+		$candidate = substr( $tag, strlen( $prefix ) );
+		if ( null === $newest || version_compare( $candidate, $version, '>' ) ) {
+			$newest  = $release;
+			$version = $candidate;
+		}
+	}
+	return null === $newest ? release_failure( 'no_release' ) : release_from_api( $newest, $slug, $version );
+}
+
+/**
  * Release details from a GitHub API answer.
  *
- * @param mixed  $data Decoded answer.
- * @param string $slug Theme or plugin folder name.
+ * @param mixed  $data    Decoded answer.
+ * @param string $slug    Theme or plugin folder name.
+ * @param string $version Version, when the tag is not just "v{version}".
  */
-function release_from_api( $data, string $slug ): array {
+function release_from_api( $data, string $slug, string $version = '' ): array {
 	if ( ! is_array( $data ) ) {
 		return release_failure( 'error', __( 'GitHub sent an answer that could not be read.', 'webcraft-media' ) );
 	}
@@ -138,7 +171,7 @@ function release_from_api( $data, string $slug ): array {
 	}
 	return array(
 		'status'  => 'ok',
-		'version' => ltrim( (string) ( $data['tag_name'] ?? '' ), 'vV' ),
+		'version' => '' !== $version ? $version : ltrim( (string) ( $data['tag_name'] ?? '' ), 'vV' ),
 		'package' => $package,
 		'notes'   => wp_kses_post( (string) ( $data['body_html'] ?? '' ) ),
 		'date'    => (string) ( $data['published_at'] ?? '' ),

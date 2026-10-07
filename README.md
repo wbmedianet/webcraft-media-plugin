@@ -41,6 +41,21 @@ public, so the plugin updates itself without a key.
 
    `SLUG` must be the installed folder name: the zip holds that folder.
 
+### Several plugins in one repository
+
+Plugins can also share a repository, one folder each (as in the private
+[wbmedianet/plugins](https://github.com/wbmedianet/plugins)). The `Update URI` then names the
+folder after the repository:
+
+```
+Update URI: https://github.com/wbmedianet/plugins/tree/main/wm-contact-form
+```
+
+Each plugin's releases are tagged `{folder}-v{version}` (e.g. `wm-contact-form-v1.2.0`) and
+carry `{folder}.zip`; the site takes the highest version among that plugin's releases. The
+shared repository has its own release workflow, which reads the folder and the version from
+the tag.
+
 ## Publishing a version
 
 1. Raise `Version:` in `style.css` or the main plugin file, commit and push.
@@ -68,7 +83,7 @@ repository.
 2. **Token name**: the client, e.g. `moroccan-spirit updates`. **Expiration**: the end of the
    maintenance period (or the longest GitHub allows).
 3. **Resource owner**: `wbmedianet`. **Repository access**: *Only select repositories* → the
-   client's repository.
+   client's repository, plus `wbmedianet/plugins` when the site uses plugins from there.
 4. **Permissions → Repository permissions → Contents: Read-only** (Metadata: Read-only is
    added automatically). Nothing else.
 5. **Generate token**, copy it and send it to the client, or paste it yourself in
@@ -92,7 +107,8 @@ define( 'WEBCRAFT_MEDIA_TOKEN', 'github_pat_…' );
 
 Updates are never offered for a theme or plugin inside a git working copy (a `.git` folder in
 it or above it, up to the folder holding WordPress): installing a release there would overwrite
-work in progress. The settings page lists such products as development copies.
+work in progress. A folder linked into the site from a working copy elsewhere (a symlink or a
+Windows junction) counts too. The settings page lists such products as development copies.
 
 ## Filters
 
